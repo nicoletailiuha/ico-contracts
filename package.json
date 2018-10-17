@@ -1,0 +1,21 @@
+{
+  "name": "bidipass-contracts",
+  "version": "1.0.0",
+  "description": "Bidipass ICO contracts",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test",
+    "testrpc": "./bin/ganache.sh"
+  },
+  "author": "AlexanderC",
+  "license": "ISC",
+  "dependencies": {
+    "bignumber.js": "^7.2.1",
+    "dotenv": "^6.0.0",
+    "web3": "^1.0.0-beta.36",
+    "zeppelin-solidity": "^1.12.0"
+  }
+}
