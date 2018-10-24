@@ -44,7 +44,7 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
      */
     constructor(
         address _wallet,
-        uint256 _ethToUsdRate // todo: remove
+        uint256 _ethToUsdRate
     ) public {
         wallet = _wallet;
         token = new BDPToken(address(this), tokenCap);
@@ -56,12 +56,12 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
     }
 
     function initializeSaleStages() public onlyIfAdminOrOwner(msg.sender) {
-        require (!stagesInitialized, 'AlreadyInitialized');
+        require (!stagesInitialized, "AlreadyInitialized");
+
+        stagesInitialized = true;
 
         initializeSaftStage();
         initializeTgeStages();
-
-        stagesInitialized = true;
     }
 
     /** ADMIN FUNCTIONALITY */
@@ -306,6 +306,15 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
      * @param _ethToUsdRate eth to usd rate to be setted
      */
     function setEthToUsdRate(uint256 _ethToUsdRate) public onlyIfAdminOrOwner(msg.sender) {
+        require(_ethToUsdRate > 0, "BadRate");
+
         ethToUsdRate = _ethToUsdRate;
+    }
+
+    /**
+     * @dev returns how many decimals the token has
+     */
+    function tokenDecimals() public view returns (uint256) {
+        return token.decimals();
     }
 }

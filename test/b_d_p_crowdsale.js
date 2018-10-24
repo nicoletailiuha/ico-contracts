@@ -263,9 +263,9 @@ contract('BDPCrowdsale', async function(accounts) {
     const eth100k = 100000 / ETH_TO_USD_RATE;
     const eth500k = 500000 / ETH_TO_USD_RATE;
 
-    const token10k = await bdpCrowdsale.getTokenAmount(eth10k + '0'.repeat(18));
-    const token100k = await bdpCrowdsale.getTokenAmount(eth100k + '0'.repeat(18));
-    const token500k = await bdpCrowdsale.getTokenAmount(eth500k + '0'.repeat(18));
+    const token10k = await bdpCrowdsale.getTokenAmount(new BigNumber(eth10k).multipliedBy(10 ** 18).toString(10));
+    const token100k = await bdpCrowdsale.getTokenAmount(new BigNumber(eth100k).multipliedBy(10 ** 18).toString(10));
+    const token500k = await bdpCrowdsale.getTokenAmount(new BigNumber(eth500k).multipliedBy(10 ** 18).toString(10));
 
     assert.equal(
       new BigNumber(10000).dividedBy(0.03125).multipliedBy(10 ** 18).integerValue(BigNumber.ROUND_FLOOR).toString(10),
@@ -306,7 +306,7 @@ contract('BDPCrowdsale', async function(accounts) {
     const bdpCrowdsale = await BDPCrowdsale.deployed();
     const eth50k = 50000 / ETH_TO_USD_RATE;
 
-    const tokenAmount = await bdpCrowdsale.getTokenAmount(eth50k + '0'.repeat(18));
+    const tokenAmount = await bdpCrowdsale.getTokenAmount(new BigNumber(eth50k).multipliedBy(10 ** 18).toString(10));
 
     assert.equal(
       new BigNumber(50000).dividedBy(0.0325 * 0.95).multipliedBy(10 ** 18).integerValue(BigNumber.ROUND_FLOOR).toString(10),
@@ -316,7 +316,7 @@ contract('BDPCrowdsale', async function(accounts) {
 
   it ('should increase TGE priceUsd to 40000 once 225,000,000 more tokens are sold', async () => {
     const bdpCrowdsale = await BDPCrowdsale.deployed();
-    const investmentAmount = new BigNumber(250000000).multipliedBy(10 ** 18).dividedBy(ETH_TO_USD_RATE).multipliedBy(0.0325 * 0.8);
+    const investmentAmount = new BigNumber(225000000).multipliedBy(10 ** 18).dividedBy(ETH_TO_USD_RATE).multipliedBy(0.0325 * 0.8);
     const tokenAmount = await bdpCrowdsale.getTokenAmount(investmentAmount.toString(10));
 
     await bdpCrowdsale.buyTokens(investorAddress, 0x0, {
@@ -352,6 +352,26 @@ contract('BDPCrowdsale', async function(accounts) {
 
     assert.equal(STAGE.TGE, stage.toString(10));
     assert.equal(45000, priceUsd.toNumber());
+  });
+
+  it ('should increase TGE priceUsd to 47500 once 46,875,000 more tokens are sold', async () => {
+    const bdpCrowdsale = await BDPCrowdsale.deployed();
+    const investmentAmount = new BigNumber(46875000).multipliedBy(10 ** 18).dividedBy(ETH_TO_USD_RATE).multipliedBy(0.045 * 0.8);
+    const tokenAmount = await bdpCrowdsale.getTokenAmount(investmentAmount.toString(10));
+
+    await bdpCrowdsale.buyTokens(investorAddress, 0x0, {
+      value: investmentAmount.toString(10),
+      from: investorAddress
+    });
+
+    const stage = await bdpCrowdsale.saleStage();
+    const priceUsd = await bdpCrowdsale.saleStagePriceUsd();
+
+    investorExpectedBalance = investorExpectedBalance.plus(tokenAmount);
+    ethInvestments = ethInvestments.plus(investmentAmount);
+
+    assert.equal(STAGE.TGE, stage.toString(10));
+    assert.equal(47500, priceUsd.toNumber());
   });
 
   it ('should change stage to finished after cap reached', async () => {

@@ -45,7 +45,7 @@ contract SaleStages {
 
     StageInfo[] public saleStagesInfo; // Sale stages info
     uint256 public tokensSold; // tokens sold so far
-    uint256 public ethToUsdRate = 200; // how many usd worth 1 ether ($200 = 1eth)
+    uint256 public ethToUsdRate; // how many usd worth
 
     /**
      * @dev push Discount into a StageInfo
@@ -70,9 +70,9 @@ contract SaleStages {
     {
         StageInfo storage _stageInfo = saleStageInfo();
         Usd memory _priceUsd = _stageInfo.priceUsd;
-        uint256 _usdAmount = _weiAmount.mul(ethToUsdRate).div(10 ** 18);
+        uint256 _usdAmount = _weiAmount.mul(ethToUsdRate).div(1 ether);
 
-        for (uint8 i = 0; i < _stageInfo.discountsLength; i++) {
+        for (uint256 i = 0; i < _stageInfo.discountsLength; i++) {
             Discount storage _discount = _stageInfo.discounts[i];
 
             if (_usdAmount >= _discount.usdInvestmentBoundaries.low && _usdAmount < _discount.usdInvestmentBoundaries.high) {
@@ -112,7 +112,7 @@ contract SaleStages {
         view
         returns (StageInfo storage)
     {
-        for (uint8 i = 0; i < saleStagesInfo.length; i++) {
+        for (uint256 i = 0; i < saleStagesInfo.length; i++) {
             StageInfo storage _stageInfo = saleStagesInfo[i];
 
             if (tokensSold >= _stageInfo.tokensBoundaries.low && tokensSold < _stageInfo.tokensBoundaries.high) {
@@ -148,7 +148,7 @@ contract SaleStages {
         } else if (_discount.discountType == DiscountType.DISCOUNT) {
             Usd memory retUsd;
 
-            retUsd.amount = _usd.amount.mul(100 - _discount.discountPercentage).div(100);
+            retUsd.amount = _usd.amount.mul(uint256(100).sub(_discount.discountPercentage)).div(100);
             retUsd.denomination = _usd.denomination;
 
             return retUsd;

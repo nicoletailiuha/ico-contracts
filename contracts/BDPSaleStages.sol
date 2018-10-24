@@ -4,32 +4,40 @@ import "./library/SaleStages.sol";
 
 
 contract BDPSaleStages is SaleStages {
+    uint256 private constant USD_DENOMINATION = 10 ** 6;
+
     /**
      * @dev Initialize TGE Stages
      */
     function initializeTgeStages() internal {
+        uint256 _tokenDenomination = 10 ** tokenDecimals();
+
+        // TGE1 = $0.032500 for >= 150,000,000 && < (150,000,000 + 225,000,000)
         _initializeTgeStage(
-            150000000 * 10 ** 18,
-            375000000 * 10 ** 18,
-            Usd(10 ** 6, 32500)
+            150000000 * _tokenDenomination,
+            375000000 * _tokenDenomination,
+            Usd(USD_DENOMINATION, 32500)
         );
 
+        // TGE2 = $0.040000 for >= 375,000,000 < (375,000,000 + 93,750,000)
         _initializeTgeStage(
-            375000000 * 10 ** 18,
-            468750000 * 10 ** 18,
-            Usd(10 ** 6, 40000)
+            375000000 * _tokenDenomination,
+            468750000 * _tokenDenomination,
+            Usd(USD_DENOMINATION, 40000)
         );
 
+        // TGE3 = $0.045000 for >= 468,750,000 < (468,750,000 + 46,875,000)
         _initializeTgeStage(
-            468750000 * 10 ** 18,
-            515625000 * 10 ** 18,
-            Usd(10 ** 6, 45000)
+            468750000 * _tokenDenomination,
+            515625000 * _tokenDenomination,
+            Usd(USD_DENOMINATION, 45000)
         );
 
+        // TGE3 = $0.047500 for >= 515,625,000 < (515,625,000 + 9,375,000)
         _initializeTgeStage(
-            515625000 * 10 ** 18,
-            525000000 * 10 ** 18,
-            Usd(10 ** 6, 47500)
+            515625000 * _tokenDenomination,
+            525000000 * _tokenDenomination,
+            Usd(USD_DENOMINATION, 47500)
         );
     }
 
@@ -46,22 +54,23 @@ contract BDPSaleStages is SaleStages {
         Usd memory saftDiscount500kPriceUsd;
         Discount memory saftDiscount100k;
         Discount memory saftDiscount500k;
+        uint256 _tokenDenomination = 10 ** tokenDecimals();
 
         /** SAFT stage */
 
         // SAFT 0...150000000 BDP tokens
         saftBoundaries.low = 0;
-        saftBoundaries.high = 150000000 * 10 ** 18;
+        saftBoundaries.high = 150000000 * _tokenDenomination;
 
         // <$100k investment > $0.031250
-        saftPriceUsd.denomination = 10 ** 6;
+        saftPriceUsd.denomination = USD_DENOMINATION;
         saftPriceUsd.amount = 31250;
 
         // >=$100k...500k investment > $0.027500
         saftDiscount100kBoundaries.low = 100000;
         saftDiscount100kBoundaries.high = 500000;
 
-        saftDiscount100kPriceUsd.denomination = 10 ** 6;
+        saftDiscount100kPriceUsd.denomination = USD_DENOMINATION;
         saftDiscount100kPriceUsd.amount = 27500;
 
         saftDiscount100k.discountType = DiscountType.PRICE;
@@ -72,7 +81,7 @@ contract BDPSaleStages is SaleStages {
         saftDiscount500kBoundaries.low = 500000;
         saftDiscount500kBoundaries.high = ~uint256(0); // Max uint256 value
 
-        saftDiscount500kPriceUsd.denomination = 10 ** 6;
+        saftDiscount500kPriceUsd.denomination = USD_DENOMINATION;
         saftDiscount500kPriceUsd.amount = 22500;
 
         saftDiscount500k.discountType = DiscountType.PRICE;
@@ -142,7 +151,7 @@ contract BDPSaleStages is SaleStages {
         // add TGE stage
         saleStagesInfo.push(tgeStage);
 
-        uint256 idx = saleStagesInfo.length - 1;
+        uint8 idx = uint8(saleStagesInfo.length) - 1;
 
         // pushDiscount works only on storage variables
         pushDiscount(saleStagesInfo[idx], tgeDiscount1);
@@ -150,4 +159,9 @@ contract BDPSaleStages is SaleStages {
         pushDiscount(saleStagesInfo[idx], tgeDiscount3);
         pushDiscount(saleStagesInfo[idx], tgeDiscount4);
     }
+
+    /**
+     * @dev returns how many decimals the token has
+     */
+    function tokenDecimals() public view returns (uint256);
 }
