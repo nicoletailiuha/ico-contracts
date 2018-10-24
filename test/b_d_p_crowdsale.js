@@ -8,11 +8,16 @@ const BDPToken = artifacts.require('BDPToken');
 contract('BDPCrowdsale', async function(accounts) {
   const evm = createEvm(web3);
 
+  const STAGE = {
+    SAFT: '0',
+    TGE: '1',
+  };
+
   const {
-    WALLET_ADDRESS, INITIAL_RATE,
-    ECOSYSTEM_ADDRESS, RESERVE_ADDRESS,
-    TEAM_ADDRESS, ADVISORS_ADDRESSES,
-    ADMIN_ADDRESSES
+    WALLET_ADDRESS, ECOSYSTEM_ADDRESS,
+    RESERVE_ADDRESS, TEAM_ADDRESS,
+    ADVISORS_ADDRESSES, ADMIN_ADDRESSES,
+    ETH_TO_USD_RATE,
   } = process.env;
 
   const ADMINS = ADMIN_ADDRESSES.split(',');
@@ -25,30 +30,25 @@ contract('BDPCrowdsale', async function(accounts) {
   const refundAddress = '0xc6853e3317fbd8412cba712b86a664b5eac1f3f6';
   const refundTokens = new BigNumber(100).multipliedBy(10 ** 18);
 
-  const burnAllowance = new BigNumber(6).multipliedBy(10 ** 18);
+  let burnAllowance;
   let walletInitialBalance = 0;
   let ethInvestments = new BigNumber(0);
-  let investorExpectedBalance = 0;
+  let investorExpectedBalance = new BigNumber(0);
   const cap = new BigNumber(1.5 * 10 ** 9).multipliedBy(10 ** 18);
   const Stages = {
     Investment: 0,
     Finished: 1,
   };
 
-  // @todo figure out why built in function not working
   async function getWalletBalance() {
     return new Promise((resolve, reject) => {
-      web3.currentProvider.sendAsync({
-        jsonrpc: '2.0',
-        method: 'eth_getBalance',
-        params: [ WALLET_ADDRESS ],
-        id: Math.ceil(Date.now() / 1000),
-      }, (error, result) => {
-        if (error) {
-          return reject(error);
+      web3.eth.getBalance(WALLET_ADDRESS, (err, res) => {
+        if (err) {
+          reject(err);
+          return;
         }
 
-        resolve(new BigNumber(parseInt(result.result, 16)));
+        resolve(res);
       });
     });
   }
@@ -171,9 +171,9 @@ contract('BDPCrowdsale', async function(accounts) {
 
   it ('should allow buyTokens for whitelisted addresses (incl. referal bonus)', async () => {
     const bdpCrowdsale = await BDPCrowdsale.deployed();
-    const rate = (await bdpCrowdsale.rate()).toNumber();
 
     const investmentAmount = 10 ** 17;
+    const tokenAmount = (await bdpCrowdsale.getTokenAmount(investmentAmount)).toString(10);
 
     await bdpCrowdsale.addAddressToWhitelist(investorAddress);
     await bdpCrowdsale.buyTokens(investorAddress, referalAddress, {
@@ -181,14 +181,15 @@ contract('BDPCrowdsale', async function(accounts) {
       from: investorAddress
     });
 
+    investorExpectedBalance = investorExpectedBalance.plus(tokenAmount);
+
     const lockedInvestorBalance = await bdpCrowdsale.getLockedBalanceOf(investorAddress);
     const lockedReferalBalance = await bdpCrowdsale.getLockedBalanceOf(referalAddress);
 
     ethInvestments = ethInvestments.plus(investmentAmount);
-    investorExpectedBalance += investmentAmount * rate;
 
-    assert.equal(investorExpectedBalance, lockedInvestorBalance.toNumber());
-    assert.equal(investmentAmount * rate * 5 / 100, lockedReferalBalance.toNumber());
+    assert.equal(investorExpectedBalance.toNumber(), lockedInvestorBalance);
+    assert.equal(tokenAmount * 5 / 100, lockedReferalBalance.toNumber());
   });
 
   it ('should increase balance of investor on investOnBehalf call', async () => {
@@ -201,9 +202,9 @@ contract('BDPCrowdsale', async function(accounts) {
 
     const lockedInvestorBalance = await bdpCrowdsale.getLockedBalanceOf(investorAddress);
 
-    investorExpectedBalance += tokenAmount;
+    investorExpectedBalance = investorExpectedBalance.plus(tokenAmount);
 
-    assert.equal(investorExpectedBalance, lockedInvestorBalance.toNumber());
+    assert.equal(investorExpectedBalance.toString(10), lockedInvestorBalance.toString(10));
   });
 
   it ('should allow refunding tokens', async () => {
@@ -238,7 +239,9 @@ contract('BDPCrowdsale', async function(accounts) {
     const tokenContract = await BDPToken.at(tokenAddress);
 
     const managerAddress = randomAdmin();
-    const burnInvestmentEth = burnAllowance.dividedBy(INITIAL_RATE).toString(10);
+    const burnInvestmentEth = 10 ** 18;
+
+    burnAllowance = await bdpCrowdsale.getTokenAmount(burnInvestmentEth);
 
     await bdpCrowdsale.addAddressToWhitelist(burnInvestorAddress);
     await bdpCrowdsale.buyTokens(burnInvestorAddress, 0x0, {
@@ -252,6 +255,103 @@ contract('BDPCrowdsale', async function(accounts) {
     ethInvestments = ethInvestments.plus(burnInvestmentEth);
 
     assert.isTrue(await tokenContract.whitelist.call(managerAddress));
+  });
+
+  it ('should return correct token amount for different investments in SAFT stage', async () => {
+    const bdpCrowdsale = await BDPCrowdsale.deployed();
+    const eth10k = 10000 / ETH_TO_USD_RATE;
+    const eth100k = 100000 / ETH_TO_USD_RATE;
+    const eth500k = 500000 / ETH_TO_USD_RATE;
+
+    const token10k = await bdpCrowdsale.getTokenAmount(eth10k + '0'.repeat(18));
+    const token100k = await bdpCrowdsale.getTokenAmount(eth100k + '0'.repeat(18));
+    const token500k = await bdpCrowdsale.getTokenAmount(eth500k + '0'.repeat(18));
+
+    assert.equal(
+      new BigNumber(10000).dividedBy(0.03125).multipliedBy(10 ** 18).integerValue(BigNumber.ROUND_FLOOR).toString(10),
+      token10k.toString(10),
+    );
+
+    assert.equal(
+      new BigNumber(100000).dividedBy(0.0275).multipliedBy(10 ** 18).integerValue(BigNumber.ROUND_FLOOR).toString(10),
+      token100k.toString(10),
+    );
+
+    assert.equal(
+      new BigNumber(500000).dividedBy(0.0225).multipliedBy(10 ** 18).integerValue(BigNumber.ROUND_FLOOR).toString(10),
+      token500k.toString(10)
+    );
+  });
+
+  it ('should change stage to TGE once 150,000,000 tokens are reached', async () => {
+    const bdpCrowdsale = await BDPCrowdsale.deployed();
+    const investmentAmount = new BigNumber(150000000).multipliedBy(10 ** 18).dividedBy(ETH_TO_USD_RATE).multipliedBy(0.0225);
+
+    await bdpCrowdsale.buyTokens(investorAddress, 0x0, {
+      value: investmentAmount.toString(10),
+      from: investorAddress
+    });
+
+    const stage = await bdpCrowdsale.saleStage();
+    const priceUsd = await bdpCrowdsale.saleStagePriceUsd();
+
+    investorExpectedBalance = investorExpectedBalance.plus(new BigNumber(150000000).multipliedBy(10 ** 18));
+    ethInvestments = ethInvestments.plus(investmentAmount);
+
+    assert.equal(STAGE.TGE, stage.toString(10));
+    assert.equal(32500, priceUsd.toNumber());
+  });
+
+  it ('should apply 5% discount in TGE phase for investments >= 50k', async () => {
+    const bdpCrowdsale = await BDPCrowdsale.deployed();
+    const eth50k = 50000 / ETH_TO_USD_RATE;
+
+    const tokenAmount = await bdpCrowdsale.getTokenAmount(eth50k + '0'.repeat(18));
+
+    assert.equal(
+      new BigNumber(50000).dividedBy(0.0325 * 0.95).multipliedBy(10 ** 18).integerValue(BigNumber.ROUND_FLOOR).toString(10),
+      tokenAmount.toString(10)
+    );
+  });
+
+  it ('should increase TGE priceUsd to 40000 once 225,000,000 more tokens are sold', async () => {
+    const bdpCrowdsale = await BDPCrowdsale.deployed();
+    const investmentAmount = new BigNumber(250000000).multipliedBy(10 ** 18).dividedBy(ETH_TO_USD_RATE).multipliedBy(0.0325 * 0.8);
+    const tokenAmount = await bdpCrowdsale.getTokenAmount(investmentAmount.toString(10));
+
+    await bdpCrowdsale.buyTokens(investorAddress, 0x0, {
+      value: investmentAmount.toString(10),
+      from: investorAddress,
+    });
+
+    const stage = await bdpCrowdsale.saleStage();
+    const priceUsd = await bdpCrowdsale.saleStagePriceUsd();
+
+    investorExpectedBalance = investorExpectedBalance.plus(tokenAmount);
+    ethInvestments = ethInvestments.plus(investmentAmount);
+
+    assert.equal(STAGE.TGE, stage.toString(10));
+    assert.equal(40000, priceUsd.toNumber());
+  });
+
+  it ('should increase TGE priceUsd to 45000 once 93,750,000 more tokens are sold', async () => {
+    const bdpCrowdsale = await BDPCrowdsale.deployed();
+    const investmentAmount = new BigNumber(93750000).multipliedBy(10 ** 18).dividedBy(ETH_TO_USD_RATE).multipliedBy(0.04 * 0.8);
+    const tokenAmount = await bdpCrowdsale.getTokenAmount(investmentAmount.toString(10));
+
+    await bdpCrowdsale.buyTokens(investorAddress, 0x0, {
+      value: investmentAmount.toString(10),
+      from: investorAddress
+    });
+
+    const stage = await bdpCrowdsale.saleStage();
+    const priceUsd = await bdpCrowdsale.saleStagePriceUsd();
+
+    investorExpectedBalance = investorExpectedBalance.plus(tokenAmount);
+    ethInvestments = ethInvestments.plus(investmentAmount);
+
+    assert.equal(STAGE.TGE, stage.toString(10));
+    assert.equal(45000, priceUsd.toNumber());
   });
 
   it ('should change stage to finished after cap reached', async () => {
@@ -358,7 +458,7 @@ contract('BDPCrowdsale', async function(accounts) {
 
     const investorBalance = await tokenContract.balanceOf(investorAddress);
 
-    assert.equal(investorExpectedBalance, investorBalance.toNumber());
+    assert.equal(investorExpectedBalance.toString(10), investorBalance.toString(10));
   });
 
   it ('should burn allowed amount of tokens', async () => {
@@ -372,7 +472,7 @@ contract('BDPCrowdsale', async function(accounts) {
 
     try {
       await tokenContract.burn(burnAllowance.toString(10), {
-        from: burnInvestorAddress
+        from: burnInvestorAddress,
       });
     } catch (e) {
       error = e;

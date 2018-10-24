@@ -25,14 +25,11 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
     uint256 public constant minEndTime = 1542283200; // 15 nov 2018
     uint256 public startedTime = now; // start immediately
     bool public initialDistribution = false;
+    bool public stagesInitialized = false;
     uint256 public endedTime;
     uint256 public tokensAllocated;
     address public reserveAddress;
     address public wallet;
-
-    // Defined in SaleStages contract (as properties or functions)
-    // uint256 public tokensSold; 
-    // uint256 public rate;
 
     mapping(address => LockStrategies.LockedBalance) public lockedBalanceOf;
 
@@ -43,24 +40,28 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
 
     /**
      * @param _wallet Wallet address to forward funds to
-     * @param _rate ETH<>Token Exchange rate
-     * @param _adminAddresses Admin addresses
+     * @param _ethToUsdRate ETH<>Token Exchange rate
      */
     constructor(
         address _wallet,
-        uint256 _rate,
-        address[] _adminAddresses
+        uint256 _ethToUsdRate // todo: remove
     ) public {
-        require(_wallet != address(0), "MissingWalletAddress");
-
         wallet = _wallet;
         token = new BDPToken(address(this), tokenCap);
 
-        setRate(_rate);
-        
+        setEthToUsdRate(_ethToUsdRate);
+
         // Asign admins and whitelisted managers for token burn mechanism
         addAuthorizeDependency(token);
-        addAddressesToAdmins(_adminAddresses);
+    }
+
+    function initializeSaleStages() public onlyIfAdminOrOwner(msg.sender) {
+        require (!stagesInitialized, 'AlreadyInitialized');
+
+        initializeSaftStage();
+        initializeTgeStages();
+
+        stagesInitialized = true;
     }
 
     /** ADMIN FUNCTIONALITY */
@@ -97,26 +98,12 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
 
         // Allocate 7% of tokens divided in equal parts to advisors wallets
         uint256 advisorAmount = tokenCap.mul(7).div(100).div(_advisorsAddresses.length);
-        
+
         for (uint256 i = 0; i < _advisorsAddresses.length; i++) {
             _allocateTokens(_advisorsAddresses[i], advisorAmount, LockStrategies.LOCK_TYPE.ADVISOR);
         }
 
         initialDistribution = true;
-    }
-
-    /**
-     * @dev Set Token Exchange rate
-     * @param _rate ETH<>Token Exchange rate
-     */
-    function setRate(uint256 _rate)
-        public
-        onlyIfAdminOrOwner(msg.sender)
-        atStage(Stages.Investment)
-    {
-        require(_rate > 0, "MissingRate");
-
-        rate = _rate;
     }
 
     /**
@@ -194,7 +181,7 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
     {
         require(msg.value > 0, "NoValue");
 
-        uint256 tokensBought = msg.value.mul(rate);
+        uint256 tokensBought = getTokenAmount(msg.value);
 
         allocateTokens(
             _beneficiary,
@@ -264,7 +251,7 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
         require(initialDistribution, "NotInitialized");
 
         tokensSold = tokensSold.add(_amount);
-        
+
         _allocateTokens(_beneficiary, _amount, _lockType);
 
         // Allocate 5% of tokens to the referal
@@ -289,7 +276,7 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
     /**
      * @dev Finish crowdsale
      */
-    function _finish() internal {        
+    function _finish() internal {
         stage = Stages.Finished;
         endedTime = now;
     }
@@ -312,5 +299,13 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
         tokensAllocated = tokensAllocated.add(_amount);
         lockedBalanceOf[_beneficiary].lockedAmount = lockedBalanceOf[_beneficiary].lockedAmount.add(_amount);
         lockedBalanceOf[_beneficiary].lockType = _lockType;
+    }
+
+    /**
+     * @dev set eth to usd rate
+     * @param _ethToUsdRate eth to usd rate to be setted
+     */
+    function setEthToUsdRate(uint256 _ethToUsdRate) public onlyIfAdminOrOwner(msg.sender) {
+        ethToUsdRate = _ethToUsdRate;
     }
 }
