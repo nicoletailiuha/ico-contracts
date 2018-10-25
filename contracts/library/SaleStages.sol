@@ -36,58 +36,124 @@ contract SaleStages {
     }
 
     struct StageInfo {
-        Stages stage; // Stage to be applied on
+        Stage stage; // Stage to be applied on
         Boundaries tokensBoundaries; // Token boundaries to check
         Usd priceUsd; // Stage price in USD
-        Discount[] discounts; // Discounts that might be applied
+        uint256 discountsLength;
+        mapping (uint256 => Discount) discounts; // solidity doesn't support memory[] convertion to storage[]
     }
 
     StageInfo[] public saleStagesInfo; // Sale stages info
     uint256 public tokensSold; // tokens sold so far
-    uint256 public ethToUsdRate = 200; // how many usd worth 1 ether ($200 = 1eth)
+    uint256 public ethToUsdRate; // how many usd worth
 
     /**
-     * @dev Get current stage of the crowdsale
+     * @dev push Discount into a StageInfo
+     * @param _stageInfo stage info to be modifier
+     * @param _discount discount to be added
      */
-    function saleStage()
-        internal
-        pure
-        returns (Stage)
-    {
-        if (tokensSold <= 150000000) {
+    function pushDiscount(StageInfo storage _stageInfo, Discount _discount) internal {
+        _stageInfo.discounts[_stageInfo.discountsLength] = _discount;
+        _stageInfo.discountsLength = _stageInfo.discountsLength.add(1);
+    }
 
-            // SAFT stage of 10% from the cap (150,000,000)
-            return Stage.SAFT;
-        } else if (tokensSold <= 225000000) {
-          
-            // TGE  stage of 25% from the cap (225,000,000)
-            return Stage.TGE;
+    /**
+     * @dev retrieve how many tokens would be allocated for specified wei amount
+     * @param _weiAmount number of wei-s to be converted to tokens
+     */
+    function getTokenAmount(
+        uint256 _weiAmount
+    )
+        public
+        view
+        returns (uint256)
+    {
+        StageInfo storage _stageInfo = saleStageInfo();
+        Usd memory _priceUsd = _stageInfo.priceUsd;
+        uint256 _usdAmount = _weiAmount.mul(ethToUsdRate).div(1 ether);
+
+        for (uint256 i = 0; i < _stageInfo.discountsLength; i++) {
+            Discount storage _discount = _stageInfo.discounts[i];
+
+            if (_usdAmount >= _discount.usdInvestmentBoundaries.low && _usdAmount < _discount.usdInvestmentBoundaries.high) {
+                _priceUsd = _applyDiscount(_discount, _priceUsd);
+                break;
+            }
         }
 
-        return Stage.NONE;
-    }
+        uint256 _tokenAmount = _weiAmount.mul(ethToUsdRate).mul(_priceUsd.denomination).div(_priceUsd.amount);
 
-    /** 
-     * @dev Get current rate in ETH (wei)
-     * @param _investment Amount of investment in wei
-     */
-    function tokenEthRate(uint267 _investment)
-        internal
-        pure
-        returns (uint256)
-    {
-        
+        return _tokenAmount;
     }
 
     /**
-     * @dev Get current rate in USD
-     * @param _investment Amount of investment in wei
+     * @dev retrieve current sale stage price
      */
-    function tokenUsdPrice(uint267 _investment)
-        internal
-        pure
-        returns (uint256)
-    {
+    function saleStagePriceUsd() public view returns (uint256) {
+        StageInfo storage _stageInfo = saleStageInfo();
 
+        return _stageInfo.priceUsd.amount;
+    }
+
+    /**
+     * @dev retrieve current sale stage
+     */
+    function saleStage() public view returns (Stage) {
+        StageInfo storage _stageInfo = saleStageInfo();
+
+        return _stageInfo.stage;
+    }
+
+    /**
+     * @dev retrieve current sale stage information
+     */
+    function saleStageInfo()
+        internal
+        view
+        returns (StageInfo storage)
+    {
+        for (uint256 i = 0; i < saleStagesInfo.length; i++) {
+            StageInfo storage _stageInfo = saleStagesInfo[i];
+
+            if (tokensSold >= _stageInfo.tokensBoundaries.low && tokensSold < _stageInfo.tokensBoundaries.high) {
+                return _stageInfo;
+            }
+        }
+
+        revert("UnknownSaleStageInfo");
+    }
+
+    /**
+     * @dev retrieve the number of sale stages
+     */
+    function saleStagesLength() public view returns (uint256) {
+        return saleStagesInfo.length;
+    }
+
+    /**
+     * @dev applies Discount on a Usd object
+     * @param _discount discount to be applied on a Usd object
+     * @param _usd Usd to be discounted
+     */
+    function _applyDiscount(
+        Discount _discount,
+        Usd memory _usd
+    )
+        private
+        pure
+        returns (Usd)
+    {
+        if (_discount.discountType == DiscountType.PRICE) {
+            return _discount.priceUsd;
+        } else if (_discount.discountType == DiscountType.DISCOUNT) {
+            Usd memory retUsd;
+
+            retUsd.amount = _usd.amount.mul(uint256(100).sub(_discount.discountPercentage)).div(100);
+            retUsd.denomination = _usd.denomination;
+
+            return retUsd;
+        }
+
+        revert("UnknownDiscountType");
     }
 }
