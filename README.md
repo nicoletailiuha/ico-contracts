@@ -1,47 +1,56 @@
-Bidipass Contracts
-==================
+# <img src="https://bidipass.org/img/logo.png">
 
-Bidipass ICO contracts
+The ICO contracts for [BidiPass](https://bidipass.org/).
 
-# TODO
+# About the project
 
-- [x] Role based whitelisting
+BidiPass is an identity authentication protocol
+designed to strengthen today’s KYC model that global
+businesses depend on.
 
-- [x] Re the other open point “Advisors & Service Providers - 7% of tokens”, as the crowdsale might go for longer than expected, the locking periods for this 7% allocation should start counting from when we deploy the smart contract and not from the end of the crowdsale. 
+By leveraging the blockchain and its own proprietary, BidiKey transfer protocol shores up the security
+holes in existing KYC systems.
 
-- [ ] Sale stages
+BidiPass doesn’t replace KYC as a service, but acts as a platform for accurate authentication of a user’s identity during a standard KYC check.
 
-- [ ] Rate logic (TGE phases)
-The rate of token to USD is to determined based on the amount of investment (in the
-SAFT phase) or the amount of tokens already bought (the TGE phase) according to the whitepaper. So in the SAFT phase (until 10% of the tokens are sold) investments of $500k have the token price of $0.022500, investments of $100k have the token price of $0.027500 and invesments of under $100k have the token price of $0.031250. In the TGE phases, the price changes based on the amount of tokens sold (information to be provided to us) and for the first phase it’s $0.032500, for the second - $0.040000, for the third - $0.045000 and for the fourth (the last one) - $0.047500. 
+# BDP Token
 
-ethToUsdRate
-usdToTokenRate
-salePhase (SAFT 10% [150,000,000], TGE 25% [375,000,000])
+The BDP token is:
 
-SAFT price (150,000,000):
-  >=500k = $0.022500
-  >=$100k = $0.027500
-  <$100k = $0.031250
-TGE cliffs:
-  i = $0.032500 for 225,000,000
-  ii = $0.040000 for 93,750,000
-  iii = $0.045000 for 46,875,000
-  iv = $0.047500 for 9,375,000
-TGE discounts:
-  <50k = 0
-  >=50k = 5%
-  >=100k = 10%
-  >=500k = 15%
-  >=1000k = 20% 
+- An ERC20 standard Ethereum blockchain-based token. BidiPass is based in a secure and trusted software technology.
+- The token that keeps all BidiPass transactions running, and which acts as the sole form of payment within the BidiPass Network.
+- Extremely straightforward to use. BDP Token is integrated into BidiPass transactions with no extra delays hassle for the user or service provider.
+- A form of reward for using the BidiPass Network. Part of all BDP Token fees will be distributed directly to the user whenever they make a transaction using the BidiPass Network. These tokens can then be exchanged for security-related products provided by BidiPass and other Network service providers.
 
 
-- [ ] Airdrop (TBD)
+# BDP Crowdsale 
 
-- [ ] Re the individual allocations for each Advisor & Service Provider, they should be preallocated to each recipient from the moment we deploy the smart contract. We can provide the full list of recipients we have with their respective amounts and wallet addresses where they will receive the tokens.
+The BDP Crowdasle will have 2 main stages.
+The SAFT stage (**150,000,000**) and the TGE stage (**375,000,000**).
 
-# TODO Tests
+Each stage will have a different token price based on the amount of tokens sold.
+There are additional discounts on top of the base price, which is determined based on the volume of the investment committed.
 
-- [ ] Airdrop
-- [ ] TGE phases logic 
-- [ ] Sale stages
+Below you can find the token base price for each stage and the discounts:
+
+<img src="/stages.png">
+
+# Graph
+
+<img src="/graph-diagram.png">
+
+# Setup
+
+Run the following commands to setup the project.
+
+```sh
+$ git clone https://github.com/BidiPassCompany/ico-contracts.git
+$ cd ico-contracts
+$ npm install
+```
+
+# Tests
+
+First you must run testrpc with our seed on your machine. You can do this by running `bash ./bin/ganache.sh`
+
+Then you can simply run `truffle test` to execute all tests
