@@ -33,6 +33,8 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
 
     mapping(address => LockStrategies.LockedBalance) public lockedBalanceOf;
 
+    event Allocate(address indexed to, uint256 amount);
+
     modifier atStage(Stages _stage) {
         require(stage == _stage, "WrongStage");
         _;
@@ -299,6 +301,8 @@ contract BDPCrowdsale is Authorize, BDPSaleStages {
         tokensAllocated = tokensAllocated.add(_amount);
         lockedBalanceOf[_beneficiary].lockedAmount = lockedBalanceOf[_beneficiary].lockedAmount.add(_amount);
         lockedBalanceOf[_beneficiary].lockType = _lockType;
+
+        emit Allocate(_beneficiary, _amount);
     }
 
     /**

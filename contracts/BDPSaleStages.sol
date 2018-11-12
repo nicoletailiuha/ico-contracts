@@ -33,7 +33,7 @@ contract BDPSaleStages is SaleStages {
             Usd(USD_DENOMINATION, 45000)
         );
 
-        // TGE3 = $0.047500 for >= 515,625,000 < (515,625,000 + 9,375,000)
+        // TGE4 = $0.047500 for >= 515,625,000 < (515,625,000 + 9,375,000)
         _initializeTgeStage(
             515625000 * _tokenDenomination,
             525000000 * _tokenDenomination,
